@@ -55,8 +55,8 @@ twitter-stats-bulk --help
 
 - `sources/top_100_usernames.csv`: public sample input (top 100 accounts), tracked in git for concision.
 - `sources/all_usernames_full.csv`: full private input list (used for larger runs), ignored by git.
-- `output/last100_summary_*.csv`: result files from running this scraper against the top 500 X accounts.
-- `output/all_cached_posts_raw_*.csv`: raw post-level output from that same top-500 run.
+- `sample_output/top500_last100_summary.csv`: sample summary output from a top-500 run.
+- `sample_output/top500_cached_posts_raw.csv`: sample raw post-level output from that same run.
 
 ## CLI
 
