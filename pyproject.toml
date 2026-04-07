@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "twitter-stats-bulk"
+version = "0.1.0"
+description = "Idempotent bulk X API scraper for timeline analytics"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Nikolay Sokolsky" }]
+dependencies = [
+  "requests>=2.31.0",
+  "pandas>=2.0.0",
+  "aiosqlite",
+  "SQLAlchemy>=2.0.0",
+  "greenlet",
+  "python-dotenv",
+  "xdk",
+]
+keywords = ["x-api", "twitter", "scraper", "analytics", "sqlite", "idempotent"]
+
+[project.urls]
+Homepage = "https://github.com/nsokolsky/twitter_stats"
+Repository = "https://github.com/nsokolsky/twitter_stats"
+
+[project.scripts]
+twitter-stats-bulk = "bulk_posts.cli:main"
+
+[tool.setuptools]
+packages = ["bulk_posts"]
+
