@@ -15,6 +15,8 @@ class UserRecord(Base):
     user_id: Mapped[str | None]
     followers_count: Mapped[int] = mapped_column(default=0)
     last_error: Mapped[str | None]
+    fetch_complete: Mapped[int] = mapped_column(default=0)
+    completion_reason: Mapped[str | None]
     updated_at: Mapped[str]
 
 

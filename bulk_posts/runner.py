@@ -6,10 +6,10 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from .config import (
+    build_start_time_iso,
     DEFAULT_ENV_FILE,
     DEFAULT_OUTPUT_DIR,
     DEFAULT_STATE_DB,
-    START_TIME_ISO,
     AppConfig,
     parse_args,
 )
@@ -21,6 +21,7 @@ from .io_helpers import load_credentials, load_usernames
 async def process_username(
     username: str,
     config: AppConfig,
+    start_time_iso: str,
     store: StateStore,
     api: XApiClient,
     semaphore: asyncio.Semaphore,
@@ -52,22 +53,33 @@ async def process_username(
                 current_count = await store.posts_count(username)
                 if current_count >= config.target_posts:
                     return username, f"ready_{current_count}"
+                remaining = config.target_posts - current_count
 
                 posts, pagination_token = await api.timeline_page(
                     user_id,
+                    max_results=remaining,
+                    start_time_iso=start_time_iso,
                     exclude=exclude,
                     pagination_token=pagination_token,
                     until_id=until_id,
                 )
                 if not posts:
-                    return username, f"partial_{current_count}"
+                    await store.set_fetch_complete(username, "timeline_exhausted_empty_page")
+                    return username, f"complete_{current_count}"
+                # For very small targets (e.g. 1-4), API still returns 5+ per page.
+                # Keep storage aligned to the configured target_posts.
+                posts = posts[:remaining]
 
                 inserted = await store.add_posts(username, posts)
                 if inserted == 0:
-                    return username, f"partial_{await store.posts_count(username)}"
+                    count_now = await store.posts_count(username)
+                    await store.set_fetch_complete(username, "timeline_exhausted_no_new_posts")
+                    return username, f"complete_{count_now}"
 
                 if not pagination_token:
-                    return username, f"partial_{await store.posts_count(username)}"
+                    count_now = await store.posts_count(username)
+                    await store.set_fetch_complete(username, "timeline_exhausted_no_next_token")
+                    return username, f"complete_{count_now}"
         except Exception as exc:  # noqa: BLE001
             error_text = f"{exc.__class__.__name__}: {exc}"
             await store.set_error(username, error_text)
@@ -76,6 +88,7 @@ async def process_username(
 
 async def run() -> None:
     config = parse_args()
+    start_time_iso = build_start_time_iso(config.days_before)
     DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     bearer_token = load_credentials(DEFAULT_ENV_FILE)
     usernames = load_usernames(config.input_csv, config.max_profiles)
@@ -91,19 +104,22 @@ async def run() -> None:
 
     print(
         f"profiles={len(usernames)} target_posts={config.target_posts} "
-        f"concurrency={config.concurrency} start_time={START_TIME_ISO}",
+        f"concurrency={config.concurrency} start_time={start_time_iso}",
         flush=True,
     )
 
     completed = 0
     errors = 0
     ready = 0
+    complete = 0
     partial = 0
 
     try:
         async with asyncio.TaskGroup() as tg:
             tasks = [
-                tg.create_task(process_username(name, config, store, api, semaphore))
+                tg.create_task(
+                    process_username(name, config, start_time_iso, store, api, semaphore)
+                )
                 for name in usernames
             ]
 
@@ -114,6 +130,8 @@ async def run() -> None:
                 errors += 1
             elif status.startswith("ready_"):
                 ready += 1
+            elif status.startswith("complete_"):
+                complete += 1
             else:
                 partial += 1
             if completed % 100 == 0 or status.startswith("error:"):
@@ -135,7 +153,11 @@ async def run() -> None:
         columns=["username", "post_id", "created_at", "likes", "reposts", "views", "raw_post_json"],
     ).to_csv(raw_csv, index=False)
 
-    print(f"done completed={completed} ready={ready} partial={partial} errors={errors}", flush=True)
+    print(
+        f"done completed={completed} ready={ready} complete={complete} "
+        f"partial={partial} errors={errors}",
+        flush=True,
+    )
     print(f"summary_csv={summary_csv}", flush=True)
     print(f"raw_posts_csv={raw_csv}", flush=True)
 

@@ -61,11 +61,17 @@ twitter-stats-bulk --help
 ## CLI
 
 - `--input-csv` path to CSV containing a `username` column
-- `--target-posts` target posts to cache per user (default: `100`)
+- `--target-posts` target posts to cache per user (default: `10`)
+- `--days-before` lookback window in days for timeline fetches (default: `7`)
 - `--max-profiles` optional cap for processed usernames
-- `--concurrency` async worker limit (default: `8`)
+- `--concurrency` async worker limit (default: `2`)
 - `--include-replies` include replies (excluded by default)
 - `--include-retweets` include retweets (excluded by default)
+
+### Notes on target size and API behavior
+
+- The X user-post timeline endpoint accepts `max_results` in the range `5..100`.
+- For very small targets (`--target-posts` less than `5`), the fetch still requests a valid page size, then trims in memory so persisted rows stay aligned with your configured target.
 
 ## project layout
 

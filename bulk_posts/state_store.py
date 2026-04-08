@@ -24,6 +24,13 @@ def _migrate_legacy_schema(sync_conn) -> None:
             sync_conn.execute(
                 text("UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL")
             )
+        if "fetch_complete" not in user_cols:
+            sync_conn.execute(text("ALTER TABLE users ADD COLUMN fetch_complete INTEGER DEFAULT 0"))
+            sync_conn.execute(
+                text("UPDATE users SET fetch_complete = 0 WHERE fetch_complete IS NULL")
+            )
+        if "completion_reason" not in user_cols:
+            sync_conn.execute(text("ALTER TABLE users ADD COLUMN completion_reason TEXT"))
     if "posts" in table_names:
         post_cols = {col["name"] for col in inspector.get_columns("posts")}
         if "raw_json" not in post_cols:
@@ -90,6 +97,8 @@ class StateStore:
                         user_id=user_id,
                         followers_count=followers_count,
                         last_error=None,
+                        fetch_complete=0,
+                        completion_reason=None,
                         updated_at=utc_now_iso(),
                     )
                 )
@@ -101,7 +110,27 @@ class StateStore:
                 await session.execute(
                     update(UserRecord)
                     .where(UserRecord.username == username)
-                    .values(last_error=error_text[:800], updated_at=utc_now_iso())
+                    .values(
+                        last_error=error_text[:800],
+                        fetch_complete=0,
+                        completion_reason=None,
+                        updated_at=utc_now_iso(),
+                    )
+                )
+                await session.commit()
+
+    async def set_fetch_complete(self, username: str, reason: str) -> None:
+        async with self._lock:
+            async with self._session_factory() as session:
+                await session.execute(
+                    update(UserRecord)
+                    .where(UserRecord.username == username)
+                    .values(
+                        fetch_complete=1,
+                        completion_reason=reason[:200],
+                        last_error=None,
+                        updated_at=utc_now_iso(),
+                    )
                 )
                 await session.commit()
 

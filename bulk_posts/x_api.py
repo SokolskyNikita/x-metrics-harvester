@@ -7,7 +7,6 @@ from typing import Any
 import requests
 from xdk import Client
 
-from .config import START_TIME_ISO, TIMELINE_PAGE_SIZE
 from .errors import XApiError
 from .utils import int_or_zero, model_to_dict, next_token_from_page
 
@@ -63,16 +62,20 @@ class XApiClient:
         self,
         user_id: str,
         *,
+        max_results: int,
+        start_time_iso: str,
         exclude: list[str],
         pagination_token: str | None,
         until_id: str | None,
     ) -> tuple[list[dict[str, Any]], str | None]:
         def run() -> tuple[list[dict[str, Any]], str | None]:
+            # X user-post timeline requires max_results in [5, 100].
+            page_size = max(5, min(100, max_results))
             iterator = self._client.users.get_posts(
                 id=user_id,
-                max_results=TIMELINE_PAGE_SIZE,
+                max_results=page_size,
                 exclude=exclude or None,
-                start_time=START_TIME_ISO,
+                start_time=start_time_iso,
                 pagination_token=pagination_token,
                 until_id=until_id,
                 tweet_fields=["created_at", "public_metrics"],
