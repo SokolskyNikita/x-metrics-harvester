@@ -54,7 +54,7 @@ twitter-stats-bulk --help
 ## CSV files
 
 - `sources/top_100_usernames.csv`: public sample input (top 100 accounts), tracked in git for concision.
-- `sources/all_usernames_full.csv`: full private input list (used for larger runs), ignored by git.
+- `sources/all_usernames_full.csv`: full list of accounts with at least 40k followers
 - `sample_output/top500_last100_summary.csv`: sample summary output from a top-500 run.
 - `sample_output/top500_cached_posts_raw.csv`: sample raw post-level output from that same run.
 

@@ -16,5 +16,5 @@ credentials.json
 
 output/
 .sqlite/
+# temporary artifact
 sources/dataset.json
-sources/all_usernames_full.csv
